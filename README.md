@@ -14,3 +14,7 @@ A .NET 8 ticketing API demonstrating how overselling happens through race condit
 ```bash
 docker compose up --build
 ```
+
+| Endpoint | URL |
+|----------|-----|
+| API | http://localhost:5000 |
