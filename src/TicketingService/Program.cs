@@ -18,6 +18,7 @@ builder.Services.AddScoped<BookingService>();
 builder.Services.AddKeyedScoped<IBookingStrategy, UnsafeBookingStrategy>("unsafe");
 builder.Services.AddKeyedScoped<IBookingStrategy, PessimisticBookingStrategy>("pessimistic");
 builder.Services.AddKeyedScoped<IBookingStrategy, OptimisticBookingStrategy>("optimistic");
+builder.Services.AddKeyedScoped<IBookingStrategy, SerializableBookingStrategy>("serializable");
 
 var app = builder.Build();
 
