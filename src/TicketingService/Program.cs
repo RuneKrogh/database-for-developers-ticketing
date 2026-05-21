@@ -1,5 +1,6 @@
 using Dapper;
 using TicketingService.Application;
+using TicketingService.Application.Strategies;
 using TicketingService.Infrastructure.Database;
 using TicketingService.Infrastructure.Repositories;
 
@@ -14,6 +15,7 @@ builder.Services.AddScoped<EventRepository>();
 builder.Services.AddScoped<BookingRepository>();
 builder.Services.AddScoped<EventService>();
 builder.Services.AddScoped<BookingService>();
+builder.Services.AddKeyedScoped<IBookingStrategy, UnsafeBookingStrategy>("unsafe");
 
 var app = builder.Build();
 
