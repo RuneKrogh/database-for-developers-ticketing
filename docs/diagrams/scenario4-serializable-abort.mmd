@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant R1 as Request 1
+    participant R2 as Request 2
+    participant DB as PostgreSQL (SSI)
+
+    R1->>DB: BEGIN SERIALIZABLE
+    R2->>DB: BEGIN SERIALIZABLE
+
+    R1->>DB: SELECT available_seats (= 1)
+    R2->>DB: SELECT available_seats (= 1)
+
+    R1->>DB: UPDATE available_seats = 0
+    R1->>DB: COMMIT
+
+    R2->>DB: UPDATE available_seats = 0
+    DB-->>R2: ERROR 40001: serialization failure
+    Note over R2,DB: SSI detects R2 read a value<br/>that R1 has now changed
+    Note over R2: Retry (up to 3 times)<br/>then NoSeatsAvailableException

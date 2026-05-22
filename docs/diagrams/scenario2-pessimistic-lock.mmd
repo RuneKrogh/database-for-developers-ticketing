@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant R1 as Request 1
+    participant R2 as Request 2
+    participant DB as PostgreSQL
+
+    R1->>DB: BEGIN
+    R2->>DB: BEGIN
+
+    R1->>DB: SELECT ... FOR UPDATE (acquires row lock)
+    DB-->>R1: available_seats = 1
+
+    R2->>DB: SELECT ... FOR UPDATE (blocks — row is locked)
+    Note over R2,DB: Request 2 waits
+
+    R1->>DB: UPDATE available_seats = 0
+    R1->>DB: INSERT INTO bookings
+    R1->>DB: COMMIT (releases lock)
+
+    DB-->>R2: available_seats = 0 (lock acquired)
+    R2->>DB: ROLLBACK
+    Note over R2: NoSeatsAvailableException<br/>thrown by application code

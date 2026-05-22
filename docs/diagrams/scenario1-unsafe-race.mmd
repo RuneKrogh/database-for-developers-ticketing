@@ -1,0 +1,14 @@
+sequenceDiagram
+    participant R1 as Request 1
+    participant R2 as Request 2
+    participant DB as PostgreSQL
+
+    R1->>DB: SELECT available_seats (= 1)
+    R2->>DB: SELECT available_seats (= 1)
+    Note over R1,R2: Both read 1 — both pass<br/>the application-level check
+
+    R1->>DB: UPDATE available_seats = 0
+    R1->>DB: INSERT INTO bookings
+    R2->>DB: UPDATE available_seats = -1
+    DB-->>R2: ERROR: violates check constraint
+    Note over DB: CHECK (available_seats >= 0)<br/>rejects the second write — INSERT never runs

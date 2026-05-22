@@ -13,19 +13,34 @@ public class UnsafeBookingTests(DatabaseFixture fixture)
         var eventId = await fixture.CreateEventAsync("Unsafe Test Event", 1);
         var strategy = new UnsafeBookingStrategy(fixture.ConnectionFactory);
 
-        // Task.Run forces each booking onto a separate thread pool thread so the
-        // reads genuinely race rather than serialising on a single async thread.
+        // All tasks wait behind a shared start signal so they are released
+        // simultaneously, increasing the likelihood of overlap at the database level.
+        var startSignal = new TaskCompletionSource();
+
         var tasks = Enumerable.Range(1, 10)
-            .Select(userId => Task.Run(() => TryBookAsync(strategy, eventId, userId)));
+            .Select(userId => Task.Run(async () =>
+            {
+                await startSignal.Task;
+                return await TryBookAsync(strategy, eventId, userId);
+            }))
+            .ToList();
+
+        startSignal.SetResult();
 
         var results = await Task.WhenAll(tasks);
 
-        // All 10 tasks pass the application-level check before any write commits.
-        // The CHECK constraint then rejects the updates that would push available_seats
-        // below zero. The failure mode is unhandled PostgresExceptions, not clean
-        // NoSeatsAvailableExceptions — that is the bug the unsafe strategy demonstrates.
+        var successes   = results.Count(r => r.Success);
         var dbExceptions = results.Count(r => r.Exception is PostgresException);
+
+        // The failure mode is unhandled PostgresExceptions from the CHECK constraint,
+        // not clean NoSeatsAvailableExceptions. That is the bug the unsafe strategy demonstrates.
         Assert.True(dbExceptions > 0, "Expected unhandled database exceptions from concurrent unsafe bookings.");
+
+        // The CHECK constraint prevents available_seats from going negative and the
+        // decrement executes before the booking insert, so the numeric state ends up
+        // correct by accident — but the workflow itself is uncontrolled.
+        Assert.Equal(0, await fixture.GetAvailableSeatsAsync(eventId));
+        Assert.Equal(successes, await fixture.GetBookingCountAsync(eventId));
     }
 
     private static async Task<(bool Success, Exception? Exception)> TryBookAsync(

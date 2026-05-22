@@ -12,8 +12,17 @@ public class PessimisticBookingTests(DatabaseFixture fixture)
         var eventId = await fixture.CreateEventAsync("Pessimistic Test Event", 1);
         var strategy = new PessimisticBookingStrategy(fixture.ConnectionFactory);
 
+        var startSignal = new TaskCompletionSource();
+
         var tasks = Enumerable.Range(1, 10)
-            .Select(userId => Task.Run(() => TryBookAsync(strategy, eventId, userId)));
+            .Select(userId => Task.Run(async () =>
+            {
+                await startSignal.Task;
+                return await TryBookAsync(strategy, eventId, userId);
+            }))
+            .ToList();
+
+        startSignal.SetResult();
 
         var results = await Task.WhenAll(tasks);
 
